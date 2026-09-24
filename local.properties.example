@@ -1,0 +1,2 @@
+## Copy to your app module root as local.properties (gitignored)
+sdk.dir=/home/box/Android/Sdk

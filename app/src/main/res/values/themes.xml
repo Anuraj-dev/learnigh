@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Learnigh" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">#FF0D0B1A</item>
+        <item name="android:windowBackground">#FF0D0B1A</item>
+        <item name="android:colorPrimary">#FF7C6BFF</item>
+    </style>
+</resources>
