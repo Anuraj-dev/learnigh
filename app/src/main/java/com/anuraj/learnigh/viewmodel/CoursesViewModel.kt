@@ -47,6 +47,10 @@ class CoursesViewModel(
         filters.value = filters.value.copy(sourceType = type)
     }
 
+    fun clearFilters() {
+        filters.value = CoursesFilterState()
+    }
+
     companion object {
         fun factory(repo: CourseRepository) =
             object : ViewModelProvider.Factory {

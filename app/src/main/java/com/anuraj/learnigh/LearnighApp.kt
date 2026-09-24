@@ -5,6 +5,7 @@ import com.anuraj.learnigh.data.local.AppDatabase
 import com.anuraj.learnigh.data.local.SeedData
 import com.anuraj.learnigh.data.local.SettingsDataStore
 import com.anuraj.learnigh.data.repository.CourseRepository
+import com.anuraj.learnigh.util.DateUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,12 +21,12 @@ class LearnighApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val db = AppDatabase.getInstance(this)
-        repository = CourseRepository(db.courseDao())
+        val database = AppDatabase.getInstance(this)
+        repository = CourseRepository(database.courseDao())
         settings = SettingsDataStore(this)
         appScope.launch {
-            repository.seedIfEmpty(SeedData.sampleCourses())
-            settings.bumpStreak(com.anuraj.learnigh.util.DateUtils.todayKey())
+            repository.seedIfNeeded(SeedData.SEED_VERSION, SeedData.sampleCourses())
+            settings.bumpStreak(DateUtils.todayKey())
         }
     }
 }

@@ -16,7 +16,7 @@ class CourseRepository(private val dao: CourseDao) {
         status: CourseStatus? = null,
         sourceType: SourceType? = null,
     ): Flow<List<CourseEntity>> = dao.observeFiltered(
-        query = query,
+        query = query.trim(),
         status = status?.name,
         sourceType = sourceType?.name,
     )
@@ -32,18 +32,36 @@ class CourseRepository(private val dao: CourseDao) {
         return if (course.id == 0L) {
             dao.insert(course.copy(createdAt = now, updatedAt = now))
         } else {
-            dao.update(course.copy(updatedAt = now))
-            course.id
+            val updated = course.copy(updatedAt = now)
+            if (dao.update(updated) > 0) course.id else dao.insert(updated.copy(id = 0, createdAt = now))
         }
     }
 
-    suspend fun delete(id: Long) = dao.deleteById(id)
+    suspend fun updateProgress(id: Long, percent: Int) {
+        val current = dao.getById(id) ?: return
+        val clamped = percent.coerceIn(0, 100)
+        val status = when {
+            clamped >= 100 -> CourseStatus.COMPLETED.name
+            clamped > 0 && current.status in listOf(
+                CourseStatus.NOT_STARTED.name,
+                CourseStatus.WISHLIST.name,
+            ) -> CourseStatus.IN_PROGRESS.name
+            else -> current.status
+        }
+        dao.updateProgress(id, clamped, status, System.currentTimeMillis())
+    }
+
+    suspend fun updateStatus(id: Long, status: CourseStatus) {
+        val current = dao.getById(id) ?: return
+        val progress = if (status == CourseStatus.COMPLETED) 100 else current.progressPercent
+        dao.updateStatus(id, status.name, progress, System.currentTimeMillis())
+    }
+
+    suspend fun delete(id: Long): Boolean = dao.deleteById(id) > 0
 
     suspend fun count(): Int = dao.count()
 
-    suspend fun seedIfEmpty(seed: List<CourseEntity>) {
-        if (dao.count() == 0) {
-            dao.insertAll(seed)
-        }
+    suspend fun seedIfNeeded(seedVersion: Int, seed: List<CourseEntity>) {
+        dao.seedSamplesIfNeeded(seedVersion, seed)
     }
 }

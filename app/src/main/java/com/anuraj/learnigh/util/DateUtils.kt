@@ -1,39 +1,36 @@
 package com.anuraj.learnigh.util
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 object DateUtils {
-    private val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-    private val dayKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-    private val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+    private val zone: ZoneId = ZoneId.systemDefault()
+    private val displayFormat = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+    private val monthYearFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 
     fun formatDate(millis: Long?): String =
-        if (millis == null) "—" else displayFormat.format(Date(millis))
+        millis?.let { Instant.ofEpochMilli(it).atZone(zone).format(displayFormat) } ?: "—"
 
-    fun todayKey(): String = dayKeyFormat.format(Date())
+    fun todayKey(): String = LocalDate.now(zone).toString()
 
     fun daysUntil(deadline: Long?): Int? {
         if (deadline == null) return null
-        val now = System.currentTimeMillis()
-        val diff = deadline - startOfDay(now)
-        return TimeUnit.MILLISECONDS.toDays(diff).toInt()
+        val target = Instant.ofEpochMilli(deadline).atZone(zone).toLocalDate()
+        return ChronoUnit.DAYS.between(LocalDate.now(zone), target).toInt()
     }
 
     fun startOfDay(millis: Long): Long {
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = millis
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
+        val date = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+        return date.atStartOfDay(zone).toInstant().toEpochMilli()
     }
 
-    fun monthYear(millis: Long): String = monthYearFormat.format(Date(millis))
+    fun monthYear(millis: Long): String =
+        Instant.ofEpochMilli(millis).atZone(zone).format(monthYearFormat)
 
     fun dueLabel(deadline: Long?): String {
         val days = daysUntil(deadline) ?: return "No deadline"
@@ -44,5 +41,23 @@ object DateUtils {
             days <= 7 -> "Due in ${days}d"
             else -> formatDate(deadline)
         }
+    }
+
+    fun toPickerDateMillis(localMillis: Long?): Long? = localMillis?.let { millis ->
+        Instant.ofEpochMilli(millis)
+            .atZone(zone)
+            .toLocalDate()
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+    }
+
+    fun fromPickerDateMillis(pickerMillis: Long?): Long? = pickerMillis?.let { millis ->
+        Instant.ofEpochMilli(millis)
+            .atZone(ZoneOffset.UTC)
+            .toLocalDate()
+            .atStartOfDay(zone)
+            .toInstant()
+            .toEpochMilli()
     }
 }

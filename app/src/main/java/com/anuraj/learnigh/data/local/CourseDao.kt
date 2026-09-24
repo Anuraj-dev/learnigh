@@ -1,10 +1,10 @@
 package com.anuraj.learnigh.data.local
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -64,18 +64,61 @@ interface CourseDao {
     @Query("SELECT COUNT(*) FROM courses")
     suspend fun count(): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Query("SELECT storedValue FROM app_metadata WHERE `key` = :key LIMIT 1")
+    suspend fun getMetadataValue(key: String): String?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(course: CourseEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAll(courses: List<CourseEntity>)
 
-    @Update
-    suspend fun update(course: CourseEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMetadata(metadata: AppMetadataEntity)
 
-    @Delete
-    suspend fun delete(course: CourseEntity)
+    @Update
+    suspend fun update(course: CourseEntity): Int
+
+    @Query(
+        """
+        UPDATE courses
+        SET progressPercent = :progressPercent,
+            status = :status,
+            updatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun updateProgress(
+        id: Long,
+        progressPercent: Int,
+        status: String,
+        updatedAt: Long,
+    ): Int
+
+    @Query(
+        """
+        UPDATE courses
+        SET status = :status,
+            progressPercent = :progressPercent,
+            updatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun updateStatus(
+        id: Long,
+        status: String,
+        progressPercent: Int,
+        updatedAt: Long,
+    ): Int
 
     @Query("DELETE FROM courses WHERE id = :id")
-    suspend fun deleteById(id: Long)
+    suspend fun deleteById(id: Long): Int
+
+    @Transaction
+    suspend fun seedSamplesIfNeeded(seedVersion: Int, courses: List<CourseEntity>) {
+        val currentVersion = getMetadataValue(SeedData.SEED_VERSION_KEY)?.toIntOrNull() ?: 0
+        if (currentVersion >= seedVersion) return
+        if (count() == 0) insertAll(courses)
+        upsertMetadata(AppMetadataEntity(SeedData.SEED_VERSION_KEY, seedVersion.toString()))
+    }
 }

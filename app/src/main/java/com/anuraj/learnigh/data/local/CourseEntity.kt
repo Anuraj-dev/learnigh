@@ -15,8 +15,14 @@ data class CourseEntity(
     val status: String = "NOT_STARTED",
     val progressPercent: Int = 0,
     val notes: String = "",
-    val tags: String = "", // comma-separated
+    val tags: String = "",
     val reminderEnabled: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+)
+
+@Entity(tableName = "app_metadata")
+data class AppMetadataEntity(
+    @PrimaryKey val key: String,
+    val storedValue: String,
 )

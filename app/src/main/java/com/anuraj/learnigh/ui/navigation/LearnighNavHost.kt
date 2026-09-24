@@ -1,15 +1,17 @@
 package com.anuraj.learnigh.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -21,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,12 +34,12 @@ import androidx.navigation.navArgument
 import com.anuraj.learnigh.data.local.SettingsDataStore
 import com.anuraj.learnigh.data.repository.CourseRepository
 import com.anuraj.learnigh.ui.calendar.CalendarScreen
+import com.anuraj.learnigh.ui.components.AddCourseFab
 import com.anuraj.learnigh.ui.courses.CoursesScreen
 import com.anuraj.learnigh.ui.detail.CourseDetailScreen
 import com.anuraj.learnigh.ui.edit.EditCourseScreen
 import com.anuraj.learnigh.ui.home.HomeScreen
 import com.anuraj.learnigh.ui.settings.SettingsScreen
-import com.anuraj.learnigh.ui.theme.IndigoPrimary
 
 private data class Tab(
     val route: String,
@@ -47,7 +50,12 @@ private data class Tab(
 
 private val tabs = listOf(
     Tab(Routes.HOME, "Home", Icons.Rounded.Home, Icons.Outlined.Home),
-    Tab(Routes.COURSES, "Courses", Icons.Rounded.MenuBook, Icons.Outlined.MenuBook),
+    Tab(
+        Routes.COURSES,
+        "Courses",
+        Icons.AutoMirrored.Rounded.MenuBook,
+        Icons.AutoMirrored.Outlined.MenuBook,
+    ),
     Tab(Routes.CALENDAR, "Deadlines", Icons.Rounded.CalendarMonth, Icons.Outlined.CalendarMonth),
     Tab(Routes.SETTINGS, "Settings", Icons.Rounded.Settings, Icons.Outlined.Settings),
 )
@@ -60,12 +68,25 @@ fun LearnighNavHost(
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
-    val showBottomBar = currentRoute in tabs.map { it.route }
+    val showBottomBar = tabs.any { it.route == currentRoute }
+    val showAddFab = currentRoute == Routes.HOME || currentRoute == Routes.COURSES
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButtonPosition = FabPosition.End,
+        floatingActionButton = {
+            if (showAddFab) {
+                AddCourseFab(
+                    onClick = { navController.navigate(Routes.ADD) },
+                )
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp,
+                ) {
                     tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
                         NavigationBarItem(
@@ -81,15 +102,17 @@ fun LearnighNavHost(
                             },
                             icon = {
                                 Icon(
-                                    if (selected) tab.selected else tab.unselected,
+                                    imageVector = if (selected) tab.selected else tab.unselected,
                                     contentDescription = tab.label,
                                 )
                             },
                             label = { Text(tab.label) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IndigoPrimary,
-                                selectedTextColor = IndigoPrimary,
-                                indicatorColor = IndigoPrimary.copy(alpha = 0.18f),
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                         )
                     }
@@ -97,11 +120,11 @@ fun LearnighNavHost(
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
+    ) { contentPadding ->
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(contentPadding),
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
@@ -150,7 +173,7 @@ fun LearnighNavHost(
                 )
             }
             composable(
-                route = "edit?courseId={courseId}",
+                route = Routes.EDIT,
                 arguments = listOf(
                     navArgument("courseId") {
                         type = NavType.LongType
@@ -163,6 +186,7 @@ fun LearnighNavHost(
                 EditCourseScreen(
                     courseId = id,
                     repository = repository,
+                    defaultReminders = settings.remindersDefault,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )

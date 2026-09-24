@@ -38,13 +38,12 @@ class HomeViewModel(
             streakDays = streak,
             inProgress = courses.filter { it.status == CourseStatus.IN_PROGRESS.name },
             dueSoon = courses
-                .filter {
-                    it.deadline != null &&
-                        it.status !in listOf(
-                            CourseStatus.COMPLETED.name,
-                            CourseStatus.EXPIRED.name,
-                        ) &&
-                        it.deadline!! <= weekAhead
+                .filter { course ->
+                    val deadline = course.deadline ?: return@filter false
+                    course.status !in listOf(
+                        CourseStatus.COMPLETED.name,
+                        CourseStatus.EXPIRED.name,
+                    ) && deadline <= weekAhead
                 }
                 .sortedBy { it.deadline },
             completedCount = courses.count { it.status == CourseStatus.COMPLETED.name },

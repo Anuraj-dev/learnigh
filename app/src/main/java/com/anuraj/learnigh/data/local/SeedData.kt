@@ -5,17 +5,20 @@ import com.anuraj.learnigh.data.model.SourceType
 import java.util.Calendar
 
 object SeedData {
+    const val SEED_VERSION = 1
+    const val SEED_VERSION_KEY = "sample_seed_version"
+
     fun sampleCourses(now: Long = System.currentTimeMillis()): List<CourseEntity> {
         fun daysFromNow(days: Int): Long {
-            val cal = Calendar.getInstance()
-            cal.timeInMillis = now
-            cal.add(Calendar.DAY_OF_YEAR, days)
-            return cal.timeInMillis
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = now
+            calendar.add(Calendar.DAY_OF_YEAR, days)
+            return calendar.timeInMillis
         }
 
         return listOf(
             CourseEntity(
-                title = "Android Jetpack Compose Masterclass",
+                title = "Jetpack Compose Crash Course for Android with Kotlin",
                 provider = "Udemy",
                 sourceType = SourceType.PAID_COURSE.name,
                 url = "https://www.udemy.com/course/jetpack-compose-masterclass/",
@@ -33,7 +36,7 @@ object SeedData {
                 title = "Kotlin Coroutines Deep Dive",
                 provider = "YouTube",
                 sourceType = SourceType.YOUTUBE.name,
-                url = "https://www.youtube.com/playlist?list=PLQkwcJG4YTCQcFEPuWCQIFYRN6ELIouGI",
+                url = "https://www.youtube.com/playlist?list=PLQkwcJG4YTCQcFEPuYGuv54nYai_lwil_",
                 purchaseOrStartDate = daysFromNow(-14),
                 deadline = daysFromNow(7),
                 status = CourseStatus.IN_PROGRESS.name,
@@ -63,7 +66,7 @@ object SeedData {
                 title = "Responsive Web Design Certification",
                 provider = "freeCodeCamp",
                 sourceType = SourceType.OTHER_FREE.name,
-                url = "https://www.freecodecamp.org/learn/2022/responsive-web-design/",
+                url = "https://www.freecodecamp.org/learn/responsive-web-design-v9",
                 purchaseOrStartDate = daysFromNow(-5),
                 deadline = null,
                 status = CourseStatus.NOT_STARTED.name,
@@ -75,15 +78,15 @@ object SeedData {
                 updatedAt = daysFromNow(-5),
             ),
             CourseEntity(
-                title = "Domestika — UI Design Fundamentals",
+                title = "UI Design Fundamentals",
                 provider = "Domestika",
                 sourceType = SourceType.PAID_COURSE.name,
-                url = "https://www.domestika.org/",
+                url = "https://www.domestika.org/en/courses/ux-design",
                 purchaseOrStartDate = null,
                 deadline = daysFromNow(30),
                 status = CourseStatus.WISHLIST.name,
                 progressPercent = 0,
-                notes = "Wait for next sale.",
+                notes = "Wait for the next sale.",
                 tags = "design,ui,wishlist",
                 reminderEnabled = true,
                 createdAt = daysFromNow(-3),
@@ -93,12 +96,12 @@ object SeedData {
                 title = "Notion AI for Students",
                 provider = "Notion",
                 sourceType = SourceType.APP_SUBSCRIPTION.name,
-                url = "https://www.notion.so/",
+                url = "https://www.notion.so/product/ai",
                 purchaseOrStartDate = daysFromNow(-120),
                 deadline = daysFromNow(10),
                 status = CourseStatus.IN_PROGRESS.name,
                 progressPercent = 80,
-                notes = "Subscription renews soon — wrap learning templates.",
+                notes = "Wrap up the learning templates before renewal.",
                 tags = "productivity,subscription",
                 reminderEnabled = true,
                 createdAt = daysFromNow(-120),

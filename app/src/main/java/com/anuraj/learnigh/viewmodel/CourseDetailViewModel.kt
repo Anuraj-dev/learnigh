@@ -8,43 +8,44 @@ import com.anuraj.learnigh.data.model.CourseStatus
 import com.anuraj.learnigh.data.repository.CourseRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class CourseDetailUiState(
+    val isLoading: Boolean = true,
+    val course: CourseEntity? = null,
+)
 
 class CourseDetailViewModel(
     private val courseId: Long,
     private val repository: CourseRepository,
 ) : ViewModel() {
 
-    val course: StateFlow<CourseEntity?> = repository.observeById(courseId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val uiState: StateFlow<CourseDetailUiState> = repository.observeById(courseId)
+        .map { course -> CourseDetailUiState(isLoading = false, course = course) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            CourseDetailUiState(),
+        )
 
     fun updateProgress(percent: Int) {
         viewModelScope.launch {
-            val current = repository.getById(courseId) ?: return@launch
-            val clamped = percent.coerceIn(0, 100)
-            val status = when {
-                clamped >= 100 -> CourseStatus.COMPLETED.name
-                clamped > 0 && current.status in listOf(
-                    CourseStatus.NOT_STARTED.name,
-                    CourseStatus.WISHLIST.name,
-                ) -> CourseStatus.IN_PROGRESS.name
-                else -> current.status
-            }
-            repository.upsert(current.copy(progressPercent = clamped, status = status))
+            repository.updateProgress(courseId, percent)
         }
     }
 
     fun updateStatus(status: CourseStatus) {
         viewModelScope.launch {
-            val current = repository.getById(courseId) ?: return@launch
-            val progress = if (status == CourseStatus.COMPLETED) 100 else current.progressPercent
-            repository.upsert(current.copy(status = status.name, progressPercent = progress))
+            repository.updateStatus(courseId, status)
         }
     }
 
-    fun delete() {
-        viewModelScope.launch { repository.delete(courseId) }
+    fun delete(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            if (repository.delete(courseId)) onDeleted()
+        }
     }
 
     companion object {
