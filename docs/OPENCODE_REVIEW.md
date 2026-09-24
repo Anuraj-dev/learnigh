@@ -19,3 +19,12 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew assembleDebug
 # APK: app/build/outputs/apk/debug/app-debug.apk (~16MB)
 ```
+
+## Bunny session 2 findings
+- SeedData already includes Udemy, YouTube, Coursera, and freeCodeCamp samples.
+- No additional provider seed entries are needed for session 2.
+- LearnighNavHost keeps the floating action button in the outer Material 3 Scaffold.
+- The bottom NavigationBar is visible only on the four primary tab destinations.
+- FAB visibility is limited to Home and Courses, avoiding detail and edit routes.
+- HomeScreen already reserves additional bottom space in its LazyColumn.
+- The existing Scaffold insets and content padding keep the FAB clear of the bottom navigation.
