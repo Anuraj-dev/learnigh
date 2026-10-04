@@ -1,0 +1,67 @@
+# Publish a sideload APK when commits land on main.
+#
+# Does NOT bump version.properties. The bump workflow runs on pull_request
+# opened and pushes the new semver onto the PR branch. Merging that PR (or
+# the initial 0.1.0 commit) is what reaches main and gets released.
+# Re-running this workflow for an existing tag is a soft skip, not a failure.
+
+name: Release APK
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK 34
+        run: |
+          set -euo pipefail
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
+          mkdir -p "${ANDROID_HOME}/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "${ANDROID_HOME}/licenses/android-sdk-license"
+
+      - name: Assemble debug APK
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(grep -E '^VERSION_NAME=' version.properties | head -n1 | cut -d= -f2- | tr -d '[:space:]')
+          TAG="v${VERSION_NAME}"
+          ASSET="Learnigh-${TAG}.apk"
+          SRC="app/build/outputs/apk/debug/app-debug.apk"
+          if [[ ! -f "$SRC" ]]; then
+            echo "APK missing at $SRC" >&2
+            exit 1
+          fi
+          cp "$SRC" "$ASSET"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release ${TAG} already exists; not creating a duplicate."
+            echo "Release ${TAG} already exists — skipped." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          NOTES=$(printf 'Sideload build of Learnigh %s.\n\nInstall\n1. Download %s from this release.\n2. On the phone, allow install from unknown sources.\n3. Open the APK and install.\n\nDebug-signed APK from GitHub Actions (assembleDebug).\n' "$TAG" "$ASSET")
+          gh release create "$TAG" "$ASSET" --title "Learnigh ${TAG}" --notes "$NOTES"
+          echo "Published ${TAG}" >> "$GITHUB_STEP_SUMMARY"

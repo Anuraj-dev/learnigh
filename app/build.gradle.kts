@@ -1,7 +1,13 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+}
+
+val learnighVersion = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
 }
 
 android {
@@ -12,8 +18,8 @@ android {
         applicationId = "com.anuraj.learnigh"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = learnighVersion.getProperty("VERSION_CODE").trim().toInt()
+        versionName = learnighVersion.getProperty("VERSION_NAME").trim()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

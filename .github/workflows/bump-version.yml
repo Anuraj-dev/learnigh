@@ -1,0 +1,136 @@
+# Version bump — once per pull request, never on main.
+#
+# On pull_request opened (not synchronize, so a PR is bumped exactly once):
+#   1. Diff the PR (base...head) plus title/body.
+#   2. Prefer OpenCode MuseSpark 1.3
+#      (opencode/muse-spark-1.3-contributor-free, variant max) if `opencode`
+#      is on PATH and authenticated. The prompt requires exactly one word:
+#      patch, minor, or major.
+#   3. Otherwise scripts/decide-bump.sh classifies the same diff:
+#        major  breaking (package id, data-dropping schema, removed public flow)
+#        minor  feature / new screen / new behavior
+#        patch  fixes, chores, docs, small tweaks
+#   4. scripts/bump-version.sh applies that semver step and +1 VERSION_CODE,
+#      then pushes "chore: bump version (<kind>)" back to the PR branch.
+#
+# Fork PRs cannot be pushed to; that job only writes a summary and exits.
+# This workflow does not run on push to main, so it cannot loop with release.yml.
+# A release happens only after the already-bumped PR is merged.
+
+name: Bump version
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  bump:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect PR diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BASE_REF"
+          git diff "origin/${BASE_REF}...HEAD" > /tmp/pr.diff
+          echo "Diff bytes: $(wc -c < /tmp/pr.diff)"
+
+      - name: Decide patch, minor, or major
+        id: decide
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          BUMP=""
+          # Model path: only if the runner already has OpenCode. GitHub-hosted
+          # runners do not, and we do not install it here (no MuseSpark auth
+          # on CI). The APK release does not depend on this step.
+          if command -v opencode >/dev/null 2>&1; then
+            PROMPT=$(cat <<EOF
+Reply with exactly one word: patch, minor, or major.
+
+You are classifying a pull request for the Learnigh Android app.
+- patch: fixes, chores, docs, CI, small tweaks
+- minor: features, new screens, new behavior
+- major: breaking changes (applicationId/package change, schema migrations that drop data, removed public flows)
+
+PR title: ${PR_TITLE}
+PR body:
+${PR_BODY}
+
+Diff:
+$(head -c 120000 /tmp/pr.diff)
+EOF
+)
+            set +e
+            RAW=$(opencode run --pure -m opencode/muse-spark-1.3-contributor-free --variant max "$PROMPT" 2>/dev/null | tail -n 20)
+            set -e
+            BUMP=$(printf '%s
+' "$RAW" | tr '[:upper:]' '[:lower:]' | grep -Eo 'patch|minor|major' | tail -n1 || true)
+            echo "MuseSpark raw decision: ${BUMP:-<none>}"
+          else
+            echo "opencode not on PATH; using scripts/decide-bump.sh"
+          fi
+          case "$BUMP" in
+            patch|minor|major) ;;
+            *)
+              BUMP=$(PR_TITLE="$PR_TITLE" PR_BODY="$PR_BODY" scripts/decide-bump.sh /tmp/pr.diff)
+              echo "Classifier decision: $BUMP"
+              ;;
+          esac
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Version decision"
+            echo ""
+            echo "Bump: **${BUMP}**"
+            echo ""
+            echo "Decided from the PR diff (MuseSpark 1.3 if opencode is authenticated on the runner, otherwise scripts/decide-bump.sh)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply semver bump
+        run: scripts/bump-version.sh "${{ steps.decide.outputs.bump }}"
+
+      - name: Commit bump back to the PR branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          KIND: ${{ steps.decide.outputs.bump }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- version.properties; then
+            echo "version.properties unchanged; nothing to push"
+            echo "No version change to commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.properties
+          git commit -m "chore: bump version (${KIND})"
+          git push origin "HEAD:${HEAD_REF}"
+
+  skip-fork:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skip
+        run: |
+          {
+            echo "### Version bump skipped"
+            echo ""
+            echo "This pull request comes from a fork, so GitHub Actions cannot push a version bump back to the head branch."
+            echo "Bump \`version.properties\` in the fork (patch / minor / major) before merge, or open the PR from a branch on this repo."
+          } >> "$GITHUB_STEP_SUMMARY"
